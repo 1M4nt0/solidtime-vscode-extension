@@ -1,0 +1,110 @@
+{
+  "name": "solidtime-vscode-extension",
+  "displayName": "Solidtime - Automatic Time Tracking",
+  "description": "Seamlessly track coding time with automatic project detection, detailed analytics, and effortless integration with Solidtime. Perfect for freelancers, remote teams, and productivity-focused developers.",
+  "publisher": "1M4nt0",
+  "version": "0.0.1",
+  "author": {
+    "name": "1M4nt0",
+    "email": "dev.andrea.antonutti@gmail.com"
+  },
+  "keywords": [
+    "time tracking",
+    "productivity",
+    "analytics",
+    "solidtime",
+    "automatic tracking",
+    "project management",
+    "developer tools",
+    "remote work",
+    "freelancer",
+    "billable hours",
+    "workspace",
+    "coding time",
+    "time tracker",
+    "flow state",
+    "focus tracking",
+    "metrics",
+    "visualization",
+    "automation",
+    "integration",
+    "dashboard",
+    "reporting",
+    "vscode extension"
+  ],
+  "bugs": {
+    "url": "https://github.com/1M4nt0/solidtime-vscode-extension/issues",
+    "email": "dev.andrea.antonutti@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/1M4nt0/solidtime-vscode-extension.git"
+  },
+  "license": "MIT",
+  "icon": "images/solidtime-logo.png",
+  "engines": {
+    "vscode": "^1.93.0",
+    "node": ">=18.0.0"
+  },
+  "categories": [
+    "Other",
+    "Visualization"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [],
+    "configuration": {
+      "title": "Solidtime - VSCode Extension",
+      "properties": {
+        "solidtime-vscode-extension.apiKey": {
+          "type": "string",
+          "description": "Your Solidtime API key"
+        },
+        "solidtime-vscode-extension.apiUrl": {
+          "type": "string",
+          "default": "https://app.solidtime.io/",
+          "description": "Base URL for Solidtime API"
+        },
+        "solidtime-vscode-extension.organizationId": {
+          "type": "string",
+          "description": "Your Solidtime organization ID"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "clean": "rm -rf dist",
+    "prebuild": "npm run clean",
+    "build": "esbuild ./src/extension.ts --bundle --outdir=dist --external:vscode --format=cjs --platform=node --minify",
+    "build:dev": "esbuild ./src/extension.ts --bundle --outdir=dist --external:vscode --format=cjs --platform=node --sourcemap",
+    "watch": "esbuild ./src/extension.ts --bundle --outdir=dist --external:vscode --format=cjs --platform=node --watch --sourcemap",
+    "prepackage": "npm run build",
+    "package": "vsce package --no-dependencies",
+    "vscode:prepublish": "npm run build",
+    "deploy": "vsce publish --no-dependencies",
+    "install:code": "code --install-extension *.vsix"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.8",
+    "@types/throttle-debounce": "^5.0.2",
+    "@types/vscode": "^1.93.0",
+    "esbuild": "^0.25.0"
+  },
+  "dependencies": {
+    "date-fns": "^4.1.0",
+    "inversify": "^7.5.1",
+    "throttle-debounce": "^5.0.2"
+  },
+  "files": [
+    "dist",
+    "images",
+    "package.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "extensionDependencies": [],
+  "qna": "marketplace"
+}
