@@ -5,7 +5,6 @@ import {initFetchWrapperInjection, initTimeTrackerServiceInjection, TimeTracker}
 import {createOrganizationProject} from './api/organizations/[orgId]/projects/post.index'
 import {getOrganizationProjects} from './api/organizations/[orgId]/projects'
 import {EventCurator} from './services/event-curator'
-import {getProjectKey} from './functions/project'
 
 const curator = new EventCurator({
   changeEventThrottleMs: 1000,
@@ -21,9 +20,19 @@ const bootstrap = async () => {
   const idleThresholdMs = config.get<number>('idleThresholdMs')
   const maxTimeSpanForOpenSliceMs = config.get<number>('maxTimeSpanForOpenSliceMs')
   const beatTimeoutMs = config.get<number>('beatTimeoutMs')
-  const projectName = getProjectKey(vscode.workspace.name)
+  const projectName = vscode.workspace.name
 
-  if (!apiKey || !apiUrl || !orgId || !idleThresholdMs || !maxTimeSpanForOpenSliceMs || !beatTimeoutMs) {
+  initLoggerInjection()
+
+  if (
+    !apiKey ||
+    !apiUrl ||
+    !orgId ||
+    !idleThresholdMs ||
+    !maxTimeSpanForOpenSliceMs ||
+    !beatTimeoutMs ||
+    !projectName
+  ) {
     const missingFields = []
     if (!apiKey) missingFields.push('apiKey')
     if (!apiUrl) missingFields.push('apiUrl')
@@ -31,10 +40,10 @@ const bootstrap = async () => {
     if (!idleThresholdMs) missingFields.push('idleThresholdMs')
     if (!maxTimeSpanForOpenSliceMs) missingFields.push('maxTimeSpanForOpenSliceMs')
     if (!beatTimeoutMs) missingFields.push('beatTimeoutMs')
+    if (!projectName) missingFields.push('projectName (no workspace)')
+    Logger().error(`Missing required configuration: ${missingFields.join(', ')}`)
     throw new Error(`Missing required configuration: ${missingFields.join(', ')}`)
   }
-
-  initLoggerInjection()
 
   initFetchWrapperInjection({
     apiUrl,
@@ -57,15 +66,6 @@ const bootstrap = async () => {
     )
     Logger().log(`project created: ${JSON.stringify(project)}`)
     currentProjectId = project.data.id
-  }
-
-  if (!currentProject) {
-    Logger().log(`project: ${projectName} does not exist, creating...`)
-    const project = await createOrganizationProject(
-      {orgId},
-      {client_id: null, color: '#000000', is_billable: false, member_ids: [member.id], name: projectName}
-    )
-    Logger().log(`project created: ${JSON.stringify(project)}`)
   }
 
   initTimeTrackerServiceInjection({

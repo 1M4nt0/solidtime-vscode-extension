@@ -6,6 +6,7 @@ import {getOrganizationTimeEntries} from '../api/organizations/[orgId]/time-entr
 import {DateUtils} from '../functions/time'
 import type {TimeEntry} from '../types/entities'
 import type {SpendTimeNotification} from './statusBar'
+
 const DEFAULT_DESCRIPTION = 'Coding time from VSCode'
 
 class TimeSlice {
