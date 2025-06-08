@@ -13,13 +13,14 @@ class StatusBar implements SpendTimeNotification {
 
   constructor() {
     this.statusBarItem = window.createStatusBarItem('solidtime-vscode-extension.time', StatusBarAlignment.Left, 3)
+    this.statusBarItem.name = 'Solidtime VSCode Extension'
+    this.statusBarItem.text = `$(clock) 0 hrs 0 mins`
+    this.statusBarItem.tooltip = 'Solidtime VSCode Extension: current working time on this project.'
+    this.statusBarItem.show()
   }
 
   update(workingTime: number): void {
     this.statusBarItem.text = `$(clock) ${this._formatTimeSpent(workingTime)}`
-    this.statusBarItem.name = 'Solidtime VSCode Extension'
-    this.statusBarItem.text = `$(clock) 0 hrs 0 mins`
-    this.statusBarItem.show()
   }
 
   dispose(): void {
