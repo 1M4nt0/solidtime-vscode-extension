@@ -1,4 +1,4 @@
-import {startOfDay, endOfDay, format, subMilliseconds, parse} from 'date-fns'
+import {startOfDay, endOfDay, format, subMilliseconds, parse, differenceInMilliseconds} from 'date-fns'
 
 class DateUtils {
   static DATE_FORMAT = 'yyyy-mm-dd'
@@ -26,6 +26,10 @@ class DateUtils {
 
   static subMilliseconds(date: Date, milliseconds: number): Date {
     return subMilliseconds(date, milliseconds)
+  }
+
+  static differenceInMilliseconds(date1: Date, date2: Date): number {
+    return differenceInMilliseconds(date1, date2)
   }
 }
 

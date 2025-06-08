@@ -5,6 +5,7 @@ import {inject, injectable} from 'inversify'
 import {getOrganizationTimeEntries} from '../api/organizations/[orgId]/time-entries'
 import {DateUtils} from '../functions/time'
 import type {TimeEntry} from '../types/entities'
+import type {SpendTimeNotification} from './statusBar'
 
 const DEFAULT_IDLE_THRESHOLD_MS = 120_000
 const IDLE_WATCHER_INTERVAL_MS = 30_000
@@ -59,6 +60,7 @@ interface TrackerOptions {
 
 const TimeTrackerServiceSymbol = Symbol.for('TimeTrackerService')
 const TimeTrackerServiceConfigSymbol = Symbol.for('TimeTrackerServiceConfig')
+const SpendTimeNotificationSymbol = Symbol.for('SpendTimeNotification')
 
 type TimeTrackerServiceConfig = {
   orgId: string
@@ -73,6 +75,7 @@ type TimeTrackerServiceConfig = {
  */
 @injectable()
 class TimeTrackerService {
+  private readonly spentTimeNotification: SpendTimeNotification
   private readonly orgId: string
   private readonly projectId: string
   private readonly memberId: string
@@ -86,10 +89,14 @@ class TimeTrackerService {
    * @param memberId - The member ID.
    * @param opts - Configuration options for the tracker.
    */
-  constructor(@inject(TimeTrackerServiceConfigSymbol) config: TimeTrackerServiceConfig) {
+  constructor(
+    @inject(TimeTrackerServiceConfigSymbol) config: TimeTrackerServiceConfig,
+    @inject(SpendTimeNotificationSymbol) spentTimeNotification: SpendTimeNotification
+  ) {
     this.orgId = config.orgId
     this.memberId = config.memberId
     this.projectId = config.projectId
+    this.spentTimeNotification = spentTimeNotification
     this._startIdleWatcher()
   }
 
@@ -215,6 +222,12 @@ class TimeTrackerService {
     Logger().debug(`endSlice: ${this.projectId}`)
     if (!this.currentSlice) return
     this.currentSlice.end = new Date()
+    this.spentTimeNotification.update(this._getTotalTimeSpent())
+  }
+
+  private _getTotalTimeSpent(): number {
+    if (!this.currentSlice || !this.currentSlice.endedAt) return 0
+    return DateUtils.differenceInMilliseconds(this.currentSlice.endedAt, this.currentSlice.startedAt)
   }
 
   /**
@@ -269,7 +282,12 @@ class TimeTrackerService {
       )
     }
   }
+
+  public dispose(): void {
+    this.stop()
+    this.spentTimeNotification.dispose()
+  }
 }
 
 export type {TimeSlice, TrackerOptions, TimeTrackerServiceConfig}
-export {TimeTrackerService, TimeTrackerServiceSymbol, TimeTrackerServiceConfigSymbol}
+export {TimeTrackerService, TimeTrackerServiceSymbol, TimeTrackerServiceConfigSymbol, SpendTimeNotificationSymbol}

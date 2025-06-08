@@ -3,10 +3,12 @@ import {
   TimeTrackerServiceSymbol,
   type TimeTrackerServiceConfig,
   TimeTrackerService,
+  SpendTimeNotificationSymbol,
 } from './timeTracker'
 import {FetchWrapper, FetchWrapperConfigSymbol, FetchWrapperSymbol, type FetchWrapperConfig} from './fetch'
 import {Container} from 'inversify'
-import { ConsoleLogger, type ILogger } from './logger'
+import {ConsoleLogger, type ILogger} from './logger'
+import {StatusBar, type SpendTimeNotification} from './statusBar'
 
 const _container = new Container()
 
@@ -18,40 +20,37 @@ const initFetchWrapperInjection = (config: {apiUrl: string; apiKey: string}) => 
   _container.bind<FetchWrapper>(FetchWrapperSymbol).to(FetchWrapper).inSingletonScope()
 }
 
-const initTimeTrackerServiceInjection = (config: {
-  orgId: string
-  memberId: string
-  projectId: string
-}) => {
+const initTimeTrackerServiceInjection = (config: {orgId: string; memberId: string; projectId: string}) => {
   _container.bind<TimeTrackerServiceConfig>(TimeTrackerServiceConfigSymbol).toConstantValue({
     orgId: config.orgId,
     memberId: config.memberId,
     projectId: config.projectId,
   })
   _container.bind<TimeTrackerService>(TimeTrackerServiceSymbol).to(TimeTrackerService).inSingletonScope()
+  _container.bind<SpendTimeNotification>(SpendTimeNotificationSymbol).to(StatusBar).inSingletonScope()
 }
 
 const initLoggerInjection = () => {
-  _container.bind<ILogger>(ConsoleLogger).toSelf().inSingletonScope()
+  _container.bind<ILogger>(ConsoleLogger).to(ConsoleLogger).inSingletonScope()
 }
 
 const API = (): FetchWrapper => {
   if (!_container.isBound(FetchWrapperSymbol)) {
     throw new Error(
       'FetchWrapper (API service) is not initialized. Ensure initFetchWrapperInjection() has been called before using API().'
-    );
+    )
   }
-  return _container.get<FetchWrapper>(FetchWrapperSymbol);
-};
+  return _container.get<FetchWrapper>(FetchWrapperSymbol)
+}
 
 const TimeTracker = (): TimeTrackerService => {
   if (!_container.isBound(TimeTrackerServiceSymbol)) {
     throw new Error(
       'TimeTrackerService is not initialized. Ensure initTimeTrackerServiceInjection() has been called before using TimeTracker().'
-    );
+    )
   }
-  return _container.get<TimeTrackerService>(TimeTrackerServiceSymbol);
-};
+  return _container.get<TimeTrackerService>(TimeTrackerServiceSymbol)
+}
 
 const Logger = (): ILogger => {
   if (!_container.isBound(ConsoleLogger)) {
