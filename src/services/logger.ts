@@ -1,7 +1,7 @@
 import {window} from 'vscode'
 import type {OutputChannel} from 'vscode'
 
-const OUTPUT_CHANNEL_NAME = 'Solidtime'
+const OUTPUT_CHANNEL_NAME = 'Solidtime VSCode Extension'
 
 interface ILogger {
   log(message: string): void
