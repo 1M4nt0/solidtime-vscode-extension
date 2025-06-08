@@ -5,7 +5,7 @@ import {initFetchWrapperInjection, initTimeTrackerServiceInjection, TimeTracker}
 import {createOrganizationProject} from './api/organizations/[orgId]/projects/post.index'
 import {getOrganizationProjects} from './api/organizations/[orgId]/projects'
 import {EventCurator} from './services/event-curator'
-import { getProjectKey } from './functions/project'
+import {getProjectKey} from './functions/project'
 
 const curator = new EventCurator({
   changeEventThrottleMs: 1000,
@@ -18,13 +18,19 @@ const bootstrap = async () => {
   const apiKey = config.get<string>('apiKey')
   const apiUrl = config.get<string>('apiUrl')
   const orgId = config.get<string>('organizationId')
+  const idleThresholdMs = config.get<number>('idleThresholdMs')
+  const maxTimeSpanForOpenSliceMs = config.get<number>('maxTimeSpanForOpenSliceMs')
+  const beatTimeoutMs = config.get<number>('beatTimeoutMs')
   const projectName = getProjectKey(vscode.workspace.name)
 
-  if (!apiKey || !apiUrl || !orgId) {
+  if (!apiKey || !apiUrl || !orgId || !idleThresholdMs || !maxTimeSpanForOpenSliceMs || !beatTimeoutMs) {
     const missingFields = []
     if (!apiKey) missingFields.push('apiKey')
     if (!apiUrl) missingFields.push('apiUrl')
     if (!orgId) missingFields.push('organizationId')
+    if (!idleThresholdMs) missingFields.push('idleThresholdMs')
+    if (!maxTimeSpanForOpenSliceMs) missingFields.push('maxTimeSpanForOpenSliceMs')
+    if (!beatTimeoutMs) missingFields.push('beatTimeoutMs')
     throw new Error(`Missing required configuration: ${missingFields.join(', ')}`)
   }
 
@@ -66,6 +72,9 @@ const bootstrap = async () => {
     orgId,
     memberId: member.id,
     projectId: currentProjectId,
+    idleThresholdMs,
+    maxTimeSpanForOpenSliceMs,
+    beatTimeoutMs,
   })
 
   return {

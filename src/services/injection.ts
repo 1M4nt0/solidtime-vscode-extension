@@ -20,11 +20,21 @@ const initFetchWrapperInjection = (config: {apiUrl: string; apiKey: string}) => 
   _container.bind<FetchWrapper>(FetchWrapperSymbol).to(FetchWrapper).inSingletonScope()
 }
 
-const initTimeTrackerServiceInjection = (config: {orgId: string; memberId: string; projectId: string}) => {
+const initTimeTrackerServiceInjection = (config: {
+  orgId: string
+  memberId: string
+  projectId: string
+  idleThresholdMs: number
+  maxTimeSpanForOpenSliceMs: number
+  beatTimeoutMs: number
+}) => {
   _container.bind<TimeTrackerServiceConfig>(TimeTrackerServiceConfigSymbol).toConstantValue({
     orgId: config.orgId,
     memberId: config.memberId,
     projectId: config.projectId,
+    idleThresholdMs: config.idleThresholdMs,
+    maxTimeSpanForOpenSliceMs: config.maxTimeSpanForOpenSliceMs,
+    beatTimeoutMs: config.beatTimeoutMs,
   })
   _container.bind<TimeTrackerService>(TimeTrackerServiceSymbol).to(TimeTrackerService).inSingletonScope()
   _container.bind<SpendTimeNotification>(SpendTimeNotificationSymbol).to(StatusBar).inSingletonScope()

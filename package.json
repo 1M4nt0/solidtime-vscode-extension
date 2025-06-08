@@ -71,6 +71,21 @@
         "solidtime-vscode-extension.organizationId": {
           "type": "string",
           "description": "Your Solidtime organization ID"
+        },
+        "solidtime-vscode-extension.idleThresholdMs": {
+          "type": "number",
+          "default": 120000,
+          "description": "Idle threshold in milliseconds"
+        },
+        "solidtime-vscode-extension.maxTimeSpanForOpenSliceMs": {
+          "type": "number",
+          "default": 300000,
+          "description": "Max time span for open slice in milliseconds. A new slice is created if the last slice is older than this value."
+        },
+        "solidtime-vscode-extension.beatTimeoutMs": {
+          "type": "number",
+          "default": 60000,
+          "description": "Beat timeout in milliseconds to sync the current slice with the API."
         }
       }
     }

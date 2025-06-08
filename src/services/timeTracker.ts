@@ -6,13 +6,6 @@ import {getOrganizationTimeEntries} from '../api/organizations/[orgId]/time-entr
 import {DateUtils} from '../functions/time'
 import type {TimeEntry} from '../types/entities'
 import type {SpendTimeNotification} from './statusBar'
-
-const DEFAULT_IDLE_THRESHOLD_MS = 120_000
-const IDLE_WATCHER_INTERVAL_MS = 30_000
-const BEAT_TIMEOUT_MS = 60_000
-
-const MAX_TIME_SPAN_FOR_OPEN_SLICE_MS = 300_000
-
 const DEFAULT_DESCRIPTION = 'Coding time from VSCode'
 
 class TimeSlice {
@@ -66,7 +59,9 @@ type TimeTrackerServiceConfig = {
   orgId: string
   memberId: string
   projectId: string
-  idleThresholdMs?: number
+  idleThresholdMs: number
+  maxTimeSpanForOpenSliceMs: number
+  beatTimeoutMs: number
 }
 
 /**
@@ -79,6 +74,9 @@ class TimeTrackerService {
   private readonly orgId: string
   private readonly projectId: string
   private readonly memberId: string
+  private readonly idleThresholdMs: number
+  private readonly maxTimeSpanForOpenSliceMs: number
+  private readonly beatTimeoutMs: number
   private currentSlice: TimeSlice | null = null
   private lastActivity = Date.now()
   private timer: NodeJS.Timeout | null = null
@@ -96,6 +94,9 @@ class TimeTrackerService {
     this.orgId = config.orgId
     this.memberId = config.memberId
     this.projectId = config.projectId
+    this.idleThresholdMs = config.idleThresholdMs
+    this.maxTimeSpanForOpenSliceMs = config.maxTimeSpanForOpenSliceMs
+    this.beatTimeoutMs = config.beatTimeoutMs
     this.spentTimeNotification = spentTimeNotification
     this._startIdleWatcher()
   }
@@ -125,7 +126,7 @@ class TimeTrackerService {
   async getLastEntryInMaxTimeSpan(): Promise<TimeEntry | null> {
     const lastEntries = await getOrganizationTimeEntries({
       orgId: this.orgId,
-      start: DateUtils.subMilliseconds(new Date(), MAX_TIME_SPAN_FOR_OPEN_SLICE_MS),
+      start: DateUtils.subMilliseconds(new Date(), this.maxTimeSpanForOpenSliceMs),
       end: new Date(),
     })
     if (lastEntries.data.length > 0) {
@@ -151,7 +152,7 @@ class TimeTrackerService {
           Logger().error(`Beat failed: ${error}`)
         })
         Logger().debug(`beat: ${this.projectId}`)
-      }, BEAT_TIMEOUT_MS)
+      }, this.beatTimeoutMs)
     } catch (error) {
       Logger().error(`start error: ${error}`)
     }
@@ -183,10 +184,10 @@ class TimeTrackerService {
    */
   private _startIdleWatcher(): void {
     setInterval(() => {
-      if (this.currentSlice && Date.now() - this.lastActivity >= DEFAULT_IDLE_THRESHOLD_MS) {
+      if (this.currentSlice && Date.now() - this.lastActivity >= this.idleThresholdMs) {
         this._endSlice()
       }
-    }, Math.min(IDLE_WATCHER_INTERVAL_MS, DEFAULT_IDLE_THRESHOLD_MS / 2))
+    }, this.idleThresholdMs / 2)
   }
 
   /**
