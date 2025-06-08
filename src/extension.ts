@@ -127,6 +127,6 @@ export async function activate(context: vscode.ExtensionContext) {
 export function deactivate() {
   Logger().log('extension deactivating')
   if (TimeTracker()) {
-    TimeTracker().stop()
+    TimeTracker().dispose()
   }
 }
