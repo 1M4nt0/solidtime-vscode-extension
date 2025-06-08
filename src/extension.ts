@@ -12,7 +12,7 @@ const curator = new EventCurator({
 
 const CONFIGURATION_SLUG = 'solidtime-vscode-extension'
 
-const bootstrap = async () => {
+const bootstrap = async (): Promise<{currentProjectId: string | null}> => {
   const config = vscode.workspace.getConfiguration(CONFIGURATION_SLUG, null)
   const apiKey = config.get<string>('apiKey')
   const apiUrl = config.get<string>('apiUrl')
@@ -24,15 +24,7 @@ const bootstrap = async () => {
 
   initLoggerInjection()
 
-  if (
-    !apiKey ||
-    !apiUrl ||
-    !orgId ||
-    !idleThresholdMs ||
-    !maxTimeSpanForOpenSliceMs ||
-    !beatTimeoutMs ||
-    !projectName
-  ) {
+  if (!apiKey || !apiUrl || !orgId || !idleThresholdMs || !maxTimeSpanForOpenSliceMs || !beatTimeoutMs) {
     const missingFields = []
     if (!apiKey) missingFields.push('apiKey')
     if (!apiUrl) missingFields.push('apiUrl')
@@ -40,9 +32,14 @@ const bootstrap = async () => {
     if (!idleThresholdMs) missingFields.push('idleThresholdMs')
     if (!maxTimeSpanForOpenSliceMs) missingFields.push('maxTimeSpanForOpenSliceMs')
     if (!beatTimeoutMs) missingFields.push('beatTimeoutMs')
-    if (!projectName) missingFields.push('projectName (no workspace)')
-    Logger().error(`Missing required configuration: ${missingFields.join(', ')}`)
     throw new Error(`Missing required configuration: ${missingFields.join(', ')}`)
+  }
+
+  // If no workspace is open, no project is selected.
+  if (!projectName) {
+    return {
+      currentProjectId: null,
+    }
   }
 
   initFetchWrapperInjection({
@@ -85,6 +82,11 @@ const bootstrap = async () => {
 export async function activate(context: vscode.ExtensionContext) {
   try {
     const {currentProjectId} = await bootstrap()
+
+    if (!currentProjectId) {
+      Logger().warn('no workspace is open, extension will not activate')
+      return
+    }
 
     const startTime = Date.now()
 
