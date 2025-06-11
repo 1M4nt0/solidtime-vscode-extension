@@ -32,6 +32,10 @@ class DateUtils {
   static differenceInMilliseconds(date1: Date, date2: Date): number {
     return differenceInMilliseconds(date1, date2)
   }
+
+  static minutesToMilliseconds(minutes: number): number {
+    return minutes * 60 * 1000
+  }
 }
 
 export {DateUtils}

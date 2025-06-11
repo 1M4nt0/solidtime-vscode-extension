@@ -6,6 +6,7 @@ import {createOrganizationProject} from './api/organizations/[orgId]/projects/po
 import {getOrganizationProjects} from './api/organizations/[orgId]/projects'
 import {EventCurator} from './services/event-curator'
 import uniqolor from 'uniqolor'
+import {DateUtils} from './functions/date'
 
 const curator = new EventCurator({
   changeEventThrottleMs: 1000,
@@ -18,21 +19,21 @@ const bootstrap = async (): Promise<{currentProjectId: string | null}> => {
   const apiKey = config.get<string>('apiKey')
   const apiUrl = config.get<string>('apiUrl')
   const orgId = config.get<string>('organizationId')
-  const idleThresholdMs = config.get<number>('idleThresholdMs')
-  const maxTimeSpanForOpenSliceMs = config.get<number>('maxTimeSpanForOpenSliceMs')
-  const beatTimeoutMs = config.get<number>('beatTimeoutMs')
+  const idleThresholdMinutes = config.get<number>('idleThresholdMinutes')
+  const maxTimeSpanForOpenSliceMinutes = config.get<number>('maxTimeSpanForOpenSliceMinutes')
+  const beatTimeoutMinutes = config.get<number>('beatTimeoutMinutes')
   const projectName = vscode.workspace.name
 
   initLoggerInjection()
 
-  if (!apiKey || !apiUrl || !orgId || !idleThresholdMs || !maxTimeSpanForOpenSliceMs || !beatTimeoutMs) {
+  if (!apiKey || !apiUrl || !orgId || !idleThresholdMinutes || !maxTimeSpanForOpenSliceMinutes || !beatTimeoutMinutes) {
     const missingFields = []
     if (!apiKey) missingFields.push('apiKey')
     if (!apiUrl) missingFields.push('apiUrl')
     if (!orgId) missingFields.push('organizationId')
-    if (!idleThresholdMs) missingFields.push('idleThresholdMs')
-    if (!maxTimeSpanForOpenSliceMs) missingFields.push('maxTimeSpanForOpenSliceMs')
-    if (!beatTimeoutMs) missingFields.push('beatTimeoutMs')
+    if (!idleThresholdMinutes) missingFields.push('idleThresholdMinutes')
+    if (!maxTimeSpanForOpenSliceMinutes) missingFields.push('maxTimeSpanForOpenSliceMinutes')
+    if (!beatTimeoutMinutes) missingFields.push('beatTimeoutMinutes')
     throw new Error(`Missing required configuration: ${missingFields.join(', ')}`)
   }
 
@@ -71,9 +72,9 @@ const bootstrap = async (): Promise<{currentProjectId: string | null}> => {
     orgId,
     memberId: member.id,
     projectId: currentProjectId,
-    idleThresholdMs,
-    maxTimeSpanForOpenSliceMs,
-    beatTimeoutMs,
+    idleThresholdMs: DateUtils.minutesToMilliseconds(idleThresholdMinutes),
+    maxTimeSpanForOpenSliceMs: DateUtils.minutesToMilliseconds(maxTimeSpanForOpenSliceMinutes),
+    beatTimeoutMs: DateUtils.minutesToMilliseconds(beatTimeoutMinutes),
   })
 
   return {
