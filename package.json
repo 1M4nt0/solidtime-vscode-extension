@@ -3,7 +3,7 @@
   "displayName": "Solidtime - Automatic Time Tracking",
   "description": "Seamlessly track coding time with automatic project detection, detailed analytics, and effortless integration with Solidtime. Perfect for freelancers, remote teams, and productivity-focused developers.",
   "publisher": "1M4nt0",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "author": {
     "name": "1M4nt0",
     "email": "dev.andrea.antonutti@gmail.com"
@@ -110,6 +110,7 @@
   },
   "dependencies": {
     "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
     "inversify": "^7.5.1",
     "throttle-debounce": "^5.0.2"
   },

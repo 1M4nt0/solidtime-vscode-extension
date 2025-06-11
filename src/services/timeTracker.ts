@@ -3,7 +3,7 @@ import {updateTimeEntry} from '../api/organizations/[orgId]/time-entries/[entryI
 import {Logger} from './injection'
 import {inject, injectable} from 'inversify'
 import {getOrganizationTimeEntries} from '../api/organizations/[orgId]/time-entries'
-import {DateUtils} from '../functions/time'
+import {DateUtils} from '../functions/date'
 import type {TimeEntry} from '../types/entities'
 import type {SpendTimeNotification} from './statusBar'
 
@@ -39,19 +39,6 @@ class TimeSlice {
   }
 }
 
-/**
- * Configuration options for the TimeTrackerService.
- */
-interface TrackerOptions {
-  /** The identifier for the current workspace. */
-  workspace: string
-  /**
-   * The threshold (in milliseconds) after which inactivity is detected and the current time slice is ended.
-   * Defaults to DEFAULT_IDLE_THRESHOLD_MS.
-   */
-  idleThresholdMs?: number
-}
-
 const TimeTrackerServiceSymbol = Symbol.for('TimeTrackerService')
 const TimeTrackerServiceConfigSymbol = Symbol.for('TimeTrackerServiceConfig')
 const SpendTimeNotificationSymbol = Symbol.for('SpendTimeNotification')
@@ -79,8 +66,9 @@ class TimeTrackerService {
   private readonly maxTimeSpanForOpenSliceMs: number
   private readonly beatTimeoutMs: number
   private currentSlice: TimeSlice | null = null
-  private lastActivity = Date.now()
-  private timer: NodeJS.Timeout | null = null
+  private lastActivity: number = Date.now()
+  private beatInterval: NodeJS.Timeout | null = null
+  private idleInterval: NodeJS.Timeout | null = null
 
   /**
    * Creates an instance of TimeTrackerService.
@@ -99,11 +87,10 @@ class TimeTrackerService {
     this.maxTimeSpanForOpenSliceMs = config.maxTimeSpanForOpenSliceMs
     this.beatTimeoutMs = config.beatTimeoutMs
     this.spentTimeNotification = spentTimeNotification
-    this._startIdleWatcher()
   }
 
   public isActive(): boolean {
-    return !!this.timer
+    return !!this.beatInterval
   }
 
   /**
@@ -124,15 +111,38 @@ class TimeTrackerService {
     }
   }
 
+  private _isAValidLastEntryForProject(entry: TimeEntry): boolean {
+    const now = new Date()
+    if (entry.end == null) {
+      return true
+    }
+    return DateUtils.parseUTCtoZonedTime(entry.end) > DateUtils.subMilliseconds(now, this.maxTimeSpanForOpenSliceMs)
+  }
+
   async getLastEntryInMaxTimeSpan(): Promise<TimeEntry | null> {
+    const now = new Date()
+
     const lastEntries = await getOrganizationTimeEntries({
       orgId: this.orgId,
-      start: DateUtils.subMilliseconds(new Date(), this.maxTimeSpanForOpenSliceMs),
-      end: new Date(),
+      start: DateUtils.startOfDay(now),
+      end: DateUtils.endOfDay(now),
+      project_ids: [this.projectId],
     })
-    if (lastEntries.data.length > 0) {
-      Logger().debug(`getLastEntryInMaxTimeSpan: ${lastEntries.data[lastEntries.data.length - 1].id}`)
-      return lastEntries.data[lastEntries.data.length - 1]
+
+    const orderedEntries = lastEntries.data.sort((a, b) => {
+      return new Date(a.start).getTime() - new Date(b.start).getTime()
+    })
+
+    const lastEntry = orderedEntries[orderedEntries.length - 1]
+
+    if (orderedEntries.length > 0) {
+      Logger().debug(`found last entry: ${lastEntry.id} ${lastEntry.end} ${lastEntry.project_id}`)
+      if (this._isAValidLastEntryForProject(lastEntry)) {
+        Logger().debug(`lastEntry is valid.`)
+        return lastEntry
+      }
+      Logger().debug(`last entry is not valid or too old, skipping`)
+      return null
     }
     return null
   }
@@ -147,16 +157,25 @@ class TimeTrackerService {
         Logger().debug(`TimeTracker already started for workspace: ${this.projectId}`)
         return
       }
+      Logger().debug(`TimeTracker started for workspace: ${this.projectId}`)
       this._beginSlice()
-      this.timer = setInterval(() => {
-        this._beat().catch((error) => {
-          Logger().error(`Beat failed: ${error}`)
-        })
-        Logger().debug(`beat: ${this.projectId}`)
-      }, this.beatTimeoutMs)
+      this._startBeat()
+      this._startIdleWatcher()
     } catch (error) {
       Logger().error(`start error: ${error}`)
     }
+  }
+
+  /**
+   * Starts the periodic beat interval that synchronizes time tracking data.
+   */
+  private _startBeat(): void {
+    this.beatInterval = setInterval(() => {
+      this._beat().catch((error) => {
+        Logger().error(`Beat failed: ${error}`)
+      })
+      Logger().debug(`beat: ${this.projectId}`)
+    }, this.beatTimeoutMs)
   }
 
   /**
@@ -169,10 +188,9 @@ class TimeTrackerService {
       return
     }
     try {
+      Logger().debug(`TimeTracker stopping for workspace: ${this.projectId}`)
       this._beat()
-      clearInterval(this.timer!)
-      this.timer = null
-      Logger().debug(`stop: ${this.projectId}`)
+      this._cleanIntervals()
     } catch (error) {
       Logger().error(`stop error: ${error}`)
     }
@@ -184,9 +202,9 @@ class TimeTrackerService {
    * the current slice is automatically ended.
    */
   private _startIdleWatcher(): void {
-    setInterval(() => {
+    this.idleInterval = setInterval(() => {
       if (this.currentSlice && Date.now() - this.lastActivity >= this.idleThresholdMs) {
-        this._endSlice()
+        this.stop()
       }
     }, this.idleThresholdMs / 2)
   }
@@ -206,8 +224,9 @@ class TimeTrackerService {
     const lastEntry = await this.getLastEntryInMaxTimeSpan()
     if (lastEntry) {
       // If last entry exists, use it as the current slice
-      this.currentSlice = new TimeSlice(DateUtils.parse(lastEntry.start, DateUtils.UTC_DATE_TIME_FORMAT))
+      this.currentSlice = new TimeSlice(DateUtils.parseUTCtoZonedTime(lastEntry.start))
       this.currentSlice.remoteId = lastEntry.id
+      this.spentTimeNotification.update(this._getTotalTimeSpent())
       return
     }
 
@@ -228,7 +247,14 @@ class TimeTrackerService {
   }
 
   private _getTotalTimeSpent(): number {
-    if (!this.currentSlice || !this.currentSlice.endedAt) return 0
+    if (!this.currentSlice) {
+      return 0
+    }
+    if (!this.currentSlice.endedAt) {
+      // If the slice is not ended, return the time spent since the slice started
+      return DateUtils.differenceInMilliseconds(new Date(), this.currentSlice.startedAt)
+    }
+    // If the slice is ended, calculate the time spent between the start and end dates
     return DateUtils.differenceInMilliseconds(this.currentSlice.endedAt, this.currentSlice.startedAt)
   }
 
@@ -285,11 +311,22 @@ class TimeTrackerService {
     }
   }
 
+  private _cleanIntervals(): void {
+    if (this.beatInterval) {
+      clearInterval(this.beatInterval)
+      this.beatInterval = null
+    }
+    if (this.idleInterval) {
+      clearInterval(this.idleInterval)
+      this.idleInterval = null
+    }
+  }
+
   public dispose(): void {
     this.stop()
     this.spentTimeNotification.dispose()
   }
 }
 
-export type {TimeSlice, TrackerOptions, TimeTrackerServiceConfig}
+export type {TimeSlice, TimeTrackerServiceConfig}
 export {TimeTrackerService, TimeTrackerServiceSymbol, TimeTrackerServiceConfigSymbol, SpendTimeNotificationSymbol}

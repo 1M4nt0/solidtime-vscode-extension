@@ -1,5 +1,5 @@
 import {API} from '../../../../services/injection'
-import {DateUtils} from '../../../../functions/time'
+import {DateUtils} from '../../../../functions/date'
 import type {APIResponse, FetchAPI} from '../../../../types/api'
 import type {TimeEntry} from '../../../../types/entities'
 import type {Nullable} from '../../../../types/utils'
@@ -29,8 +29,8 @@ const createTimeEntry: FetchAPI<CreateTimeEntryResponse, [RequestCreateTimeEntry
     method: 'POST',
     body: {
       ...body,
-      start: DateUtils.format(body.start, DateUtils.UTC_DATE_TIME_FORMAT),
-      end: body.end ? DateUtils.format(body.end, DateUtils.UTC_DATE_TIME_FORMAT) : undefined,
+      start: DateUtils.formatUTCTimeZone(body.start, DateUtils.UTC_DATE_TIME_FORMAT),
+      end: body.end ? DateUtils.formatUTCTimeZone(body.end, DateUtils.UTC_DATE_TIME_FORMAT) : undefined,
     },
   })
 }

@@ -9,7 +9,7 @@ type FetchWrapperConfig = {
 
 export interface RequestOptions<B = unknown> extends Omit<RequestInit, 'method' | 'headers' | 'body'> {
   method?: HttpMethod
-  searchParams?: Record<string, string | number | boolean>
+  searchParams?: Record<string, string | number | boolean | undefined | null | string[]>
   body?: B
   headers?: HeadersInit
 }
@@ -34,10 +34,7 @@ class FetchWrapper {
   async request<R = unknown, B = unknown>(path: string, options: RequestOptions<B> = {}): Promise<R> {
     const {baseUrl, apiKey} = this.config
 
-    const url = new URL(baseUrl + path)
-    if (options.searchParams) {
-      Object.entries(options.searchParams).forEach(([k, v]) => url.searchParams.append(k, String(v)))
-    }
+    const url = computeUrl(baseUrl, path, options.searchParams)
 
     const headers: HeadersInit = {
       Authorization: `Bearer ${apiKey}`,
@@ -71,6 +68,38 @@ class FetchWrapper {
 
     return parsedBody as R
   }
+}
+
+/**
+ * Computes a URL by combining a base URL with a path and optional search parameters.
+ *
+ * @param baseUrl - The base URL to append the path to
+ * @param path - The path to append to the base URL
+ * @param searchParams - Optional search parameters to append to the URL. Arrays are converted to multiple parameters with '[]' suffix
+ * @returns A URL object with the combined URL and search parameters
+ */
+function computeUrl(
+  baseUrl: string,
+  path: string,
+  searchParams?: Record<string, string | number | boolean | undefined | null | string[]>
+): URL {
+  const url = new URL(baseUrl + path)
+
+  if (!searchParams) {
+    return url
+  }
+
+  Object.entries(searchParams).forEach(([key, value]) => {
+    if (value == null) return
+
+    if (Array.isArray(value)) {
+      value.forEach((item) => url.searchParams.append(`${key}[]`, String(item)))
+    } else {
+      url.searchParams.append(key, String(value))
+    }
+  })
+
+  return url
 }
 
 export {FetchWrapper, FetchWrapperConfigSymbol, FetchWrapperSymbol}
