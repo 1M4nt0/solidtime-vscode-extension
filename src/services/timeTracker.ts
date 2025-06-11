@@ -126,7 +126,6 @@ class TimeTrackerService {
       orgId: this.orgId,
       start: DateUtils.startOfDay(now),
       end: DateUtils.endOfDay(now),
-      project_ids: [this.projectId],
     })
 
     const orderedEntries = lastEntries.data.sort((a, b) => {
@@ -135,7 +134,14 @@ class TimeTrackerService {
 
     const lastEntry = orderedEntries[orderedEntries.length - 1]
 
-    if (orderedEntries.length > 0) {
+    if(lastEntry.project_id !== this.projectId) {
+      // If the last entry is not for the current project, return null
+      return null
+    }
+
+    const projectEntries = lastEntries.data.filter((entry) => entry.project_id === this.projectId)
+
+    if (projectEntries.length > 0) {
       Logger().debug(`found last entry: ${lastEntry.id} ${lastEntry.end} ${lastEntry.project_id}`)
       if (this._isAValidLastEntryForProject(lastEntry)) {
         Logger().debug(`lastEntry is valid.`)
