@@ -7,6 +7,9 @@ import {getOrganizationProjects} from './api/organizations/[orgId]/projects'
 import {EventCurator} from './services/event-curator'
 import uniqolor from 'uniqolor'
 import {DateUtils} from './functions/date'
+import {debounce} from './functions/debounce'
+
+const ACTIVITY_DEBOUNCE_MS = 1000
 
 const curator = new EventCurator({
   changeEventThrottleMs: 1000,
@@ -82,6 +85,37 @@ const bootstrap = async (): Promise<{currentProjectId: string | null}> => {
   }
 }
 
+/**
+ * Sets up activity handlers that track user interactions with the VS Code.
+ * These handlers monitor various file and document events to detect when the user is actively working.
+ *
+ * @param context - The VS Code extension context for managing subscriptions
+ * @param handleActivity - Callback function to invoke when user activity is detected
+ */
+const setupActivityHandlers = (context: vscode.ExtensionContext, handleActivity: () => void) => {
+  curator.onDidChangeRelevantTextDocument(handleActivity, null, context.subscriptions)
+
+  vscode.workspace.onDidCloseTextDocument(handleActivity, null, context.subscriptions)
+
+  vscode.workspace.onDidOpenTextDocument(handleActivity, null, context.subscriptions)
+
+  vscode.workspace.onDidCreateFiles(handleActivity, null, context.subscriptions)
+
+  vscode.workspace.onDidDeleteFiles(handleActivity, null, context.subscriptions)
+
+  vscode.workspace.onDidRenameFiles(handleActivity, null, context.subscriptions)
+
+  vscode.workspace.onDidSaveTextDocument(handleActivity, null, context.subscriptions)
+
+  vscode.window.onDidStartTerminalShellExecution(handleActivity, null, context.subscriptions)
+
+  vscode.window.onDidEndTerminalShellExecution(handleActivity, null, context.subscriptions)
+
+  vscode.window.onDidOpenTerminal(handleActivity, null, context.subscriptions)
+
+  vscode.window.onDidCloseTerminal(handleActivity, null, context.subscriptions)
+}
+
 export async function activate(context: vscode.ExtensionContext) {
   try {
     const {currentProjectId} = await bootstrap()
@@ -96,10 +130,6 @@ export async function activate(context: vscode.ExtensionContext) {
     Logger().log('extension activating')
     Logger().log(`session started at ${new Date(startTime).toISOString()}`)
 
-    const handleActivityWithDebounce = () => {
-      TimeTracker().onActivity()
-    }
-
     const handleWindowStateChange = (state: vscode.WindowState) => {
       try {
         if (state.focused) {
@@ -112,7 +142,10 @@ export async function activate(context: vscode.ExtensionContext) {
       }
     }
 
-    curator.onDidChangeRelevantTextDocument(handleActivityWithDebounce, null, context.subscriptions)
+    setupActivityHandlers(
+      context,
+      debounce(() => TimeTracker().onActivity(), ACTIVITY_DEBOUNCE_MS)
+    )
 
     vscode.window.onDidChangeWindowState(handleWindowStateChange, null, context.subscriptions)
 
