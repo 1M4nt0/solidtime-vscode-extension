@@ -5,6 +5,7 @@ import {initFetchWrapperInjection, initTimeTrackerServiceInjection, TimeTracker}
 import {createOrganizationProject} from './api/organizations/[orgId]/projects/post.index'
 import {getOrganizationProjects} from './api/organizations/[orgId]/projects'
 import {EventCurator} from './services/event-curator'
+import uniqolor from 'uniqolor'
 
 const curator = new EventCurator({
   changeEventThrottleMs: 1000,
@@ -57,9 +58,10 @@ const bootstrap = async (): Promise<{currentProjectId: string | null}> => {
 
   if (!currentProjectId) {
     Logger().log(`project: ${projectName} does not exist, creating...`)
+    const {color} = uniqolor(projectName)
     const project = await createOrganizationProject(
       {orgId},
-      {client_id: null, color: '#000000', is_billable: false, member_ids: [member.id], name: projectName}
+      {client_id: null, color, is_billable: false, member_ids: [member.id], name: projectName}
     )
     Logger().log(`project created: ${JSON.stringify(project)}`)
     currentProjectId = project.data.id
