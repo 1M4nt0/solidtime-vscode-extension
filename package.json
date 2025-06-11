@@ -74,7 +74,7 @@
         },
         "solidtime-vscode-extension.idleThresholdMinutes": {
           "type": "number",
-          "default": 5,
+          "default": 10,
           "description": "Idle threshold in minutes"
         },
         "solidtime-vscode-extension.maxTimeSpanForOpenSliceMinutes": {
