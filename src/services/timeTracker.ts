@@ -134,7 +134,7 @@ class TimeTrackerService {
 
     const lastEntry = orderedEntries[orderedEntries.length - 1]
 
-    if(lastEntry.project_id !== this.projectId) {
+    if (lastEntry && lastEntry.project_id !== this.projectId) {
       // If the last entry is not for the current project, return null
       return null
     }
