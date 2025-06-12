@@ -14,8 +14,10 @@ class TimeSlice {
   private _endedAt?: Date
   private _remoteId?: string
 
-  constructor(startedAt: Date) {
+  constructor({startedAt, endedAt, remoteId}: {startedAt: Date; endedAt?: Date; remoteId?: string}) {
     this._startedAt = startedAt
+    this._endedAt = endedAt
+    this._remoteId = remoteId
   }
 
   get startedAt(): Date {
@@ -26,16 +28,16 @@ class TimeSlice {
     return this._endedAt
   }
 
-  set end(endedAt: Date) {
-    this._endedAt = endedAt
-  }
-
-  set remoteId(id: string) {
-    this._remoteId = id
-  }
-
   get remoteId(): string | undefined {
     return this._remoteId
+  }
+
+  copyWith({startedAt, endedAt, remoteId}: {startedAt?: Date; endedAt?: Date; remoteId?: string}): TimeSlice {
+    return new TimeSlice({
+      startedAt: startedAt ?? this._startedAt,
+      endedAt: endedAt ?? this._endedAt,
+      remoteId: remoteId ?? this._remoteId,
+    })
   }
 }
 
@@ -121,7 +123,7 @@ class TimeTrackerService {
     return DateUtils.parseUTCtoZonedTime(entry.end) > DateUtils.subMilliseconds(now, this.maxTimeSpanForOpenSliceMs)
   }
 
-  async getLastEntryInMaxTimeSpan(): Promise<TimeEntry | null> {
+  private async _getLastEntryInMaxTimeSpan(): Promise<TimeEntry | null> {
     const now = new Date()
 
     const lastEntries = await getOrganizationTimeEntries({
@@ -167,6 +169,7 @@ class TimeTrackerService {
       }
       Logger().debug(`TimeTracker started for workspace: ${this.projectId}`)
       this._reset()
+      await this._updateLastEntry()
       this._beginSlice()
       this._startBeat()
       this._startIdleWatcher()
@@ -232,7 +235,7 @@ class TimeTrackerService {
    * Begins a new time slice.
    * Sets the current slice with the current workspace and start time.
    */
-  private async _beginSlice(): Promise<void> {
+  private _beginSlice(): void {
     Logger().debug(`beginSlice: ${this.projectId}`)
 
     if (this.currentSlice) {
@@ -240,17 +243,34 @@ class TimeTrackerService {
       return
     }
 
-    const lastEntry = await this.getLastEntryInMaxTimeSpan()
-    if (lastEntry) {
-      // If last entry exists, use it as the current slice
-      this.currentSlice = new TimeSlice(DateUtils.parseUTCtoZonedTime(lastEntry.start))
-      this.currentSlice.remoteId = lastEntry.id
-      this.spentTimeNotification.update(this._getTotalTimeSpent())
+    // If no last entry exists, create a new slice
+    this._setCurrentSlice(new TimeSlice({startedAt: new Date()}))
+  }
+
+  /**
+   * Searches for the last time entry within the maximum time span.
+   * If a last entry exists, it creates a new time slice based on that entry
+   * and sets it as the current slice with the remote ID for synchronization.
+   * Updates the spent time notification with the current total time.
+   */
+  private async _updateLastEntry(): Promise<void> {
+    Logger().debug(`updateLastEntry: ${this.projectId}`)
+    const lastEntry = await this._getLastEntryInMaxTimeSpan()
+    if (!lastEntry) {
       return
     }
 
-    // If no last entry exists, create a new slice
-    this.currentSlice = new TimeSlice(new Date())
+    // If last entry exists, use it as the current slice
+    const timeSlice = new TimeSlice({
+      startedAt: DateUtils.parseUTCtoZonedTime(lastEntry.start),
+      remoteId: lastEntry.id,
+    })
+    this._setCurrentSlice(timeSlice)
+  }
+
+  private _setCurrentSlice(timeSlice: TimeSlice | null): void {
+    this.currentSlice = timeSlice
+    this.spentTimeNotification.update(this._getTotalTimeSpent())
   }
 
   /**
@@ -261,10 +281,16 @@ class TimeTrackerService {
   private _endSlice(): void {
     Logger().debug(`endSlice: ${this.projectId}`)
     if (!this.currentSlice) return
-    this.currentSlice.end = new Date()
-    this.spentTimeNotification.update(this._getTotalTimeSpent())
+    const timeSlice = this.currentSlice.copyWith({endedAt: new Date()})
+    this._setCurrentSlice(timeSlice)
   }
 
+  /**
+   * Calculates the total time spent on the current time slice in milliseconds.
+   * @returns The total time spent in milliseconds. Returns 0 if no current slice exists.
+   *          For active slices (no end time), returns time from start to now.
+   *          For completed slices, returns time between start and end.
+   */
   private _getTotalTimeSpent(): number {
     if (!this.currentSlice) {
       return 0
@@ -321,7 +347,7 @@ class TimeTrackerService {
             description: DEFAULT_DESCRIPTION,
           }
         )
-        this.currentSlice.remoteId = res.data.id
+        this._setCurrentSlice(this.currentSlice.copyWith({remoteId: res.data.id}))
       }
     } catch (error: unknown) {
       Logger().error(
