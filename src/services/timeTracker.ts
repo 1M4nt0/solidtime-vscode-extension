@@ -105,7 +105,9 @@ class TimeTrackerService {
       }
       Logger().debug(`onActivity: ${this.projectId}`)
       this.lastActivity = Date.now()
-      if (!this.currentSlice) this._beginSlice()
+      if (!this.currentSlice) {
+        this._beginSlice()
+      }
     } catch (error) {
       Logger().error(`onActivity error: ${error}`)
     }
@@ -164,12 +166,23 @@ class TimeTrackerService {
         return
       }
       Logger().debug(`TimeTracker started for workspace: ${this.projectId}`)
+      this._reset()
       this._beginSlice()
       this._startBeat()
       this._startIdleWatcher()
     } catch (error) {
       Logger().error(`start error: ${error}`)
     }
+  }
+
+  /**
+   * Resets the time tracker state.
+   * Clears the current slice and updates the last activity timestamp.
+   */
+  private _reset(): void {
+    Logger().debug(`reset: ${this.projectId}`)
+    this.currentSlice = null
+    this.lastActivity = Date.now()
   }
 
   /**
@@ -273,11 +286,11 @@ class TimeTrackerService {
    */
   private async _beat(): Promise<void> {
     try {
-      this._endSlice()
-
       if (!this.currentSlice) {
         return
       }
+
+      this._endSlice()
 
       // An actual slice is running - sync it with the API
       if (this.currentSlice.remoteId) {
