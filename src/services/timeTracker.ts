@@ -193,6 +193,9 @@ class TimeTrackerService {
    */
   private _startBeat(): void {
     this.beatInterval = setInterval(() => {
+      if (this.lastActivity < Date.now() - this.beatTimeoutMs) {
+        return
+      }
       this._beat().catch((error) => {
         Logger().error(`Beat failed: ${error}`)
       })
@@ -244,7 +247,8 @@ class TimeTrackerService {
     }
 
     // If no last entry exists, create a new slice
-    this._setCurrentSlice(new TimeSlice({startedAt: new Date()}))
+    const timeSlice = new TimeSlice({startedAt: new Date()})
+    this._setCurrentSlice(timeSlice)
   }
 
   /**
@@ -312,6 +316,7 @@ class TimeTrackerService {
    */
   private async _beat(): Promise<void> {
     try {
+      // If no slice is active or the last activity was less than the beat timeout, return
       if (!this.currentSlice) {
         return
       }
@@ -347,7 +352,8 @@ class TimeTrackerService {
             description: DEFAULT_DESCRIPTION,
           }
         )
-        this._setCurrentSlice(this.currentSlice.copyWith({remoteId: res.data.id}))
+        const timeSlice = this.currentSlice.copyWith({remoteId: res.data.id})
+        this._setCurrentSlice(timeSlice)
       }
     } catch (error: unknown) {
       Logger().error(

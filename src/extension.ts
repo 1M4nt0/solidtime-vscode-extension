@@ -132,7 +132,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
     const handleWindowStateChange = (state: vscode.WindowState) => {
       try {
-        if (state.focused) {
+        if (state.focused || state.active) {
           TimeTracker().start()
         } else {
           TimeTracker().stop()
