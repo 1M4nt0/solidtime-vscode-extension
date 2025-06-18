@@ -22,19 +22,17 @@ const bootstrap = async (): Promise<{currentProjectId: string | null}> => {
   const apiKey = config.get<string>('apiKey')
   const apiUrl = config.get<string>('apiUrl')
   const orgId = config.get<string>('organizationId')
-  const idleThresholdMinutes = config.get<number>('idleThresholdMinutes')
   const maxTimeSpanForOpenSliceMinutes = config.get<number>('maxTimeSpanForOpenSliceMinutes')
   const beatTimeoutMinutes = config.get<number>('beatTimeoutMinutes')
   const projectName = vscode.workspace.name
 
   initLoggerInjection()
 
-  if (!apiKey || !apiUrl || !orgId || !idleThresholdMinutes || !maxTimeSpanForOpenSliceMinutes || !beatTimeoutMinutes) {
+  if (!apiKey || !apiUrl || !orgId || !maxTimeSpanForOpenSliceMinutes || !beatTimeoutMinutes) {
     const missingFields = []
     if (!apiKey) missingFields.push('apiKey')
     if (!apiUrl) missingFields.push('apiUrl')
     if (!orgId) missingFields.push('organizationId')
-    if (!idleThresholdMinutes) missingFields.push('idleThresholdMinutes')
     if (!maxTimeSpanForOpenSliceMinutes) missingFields.push('maxTimeSpanForOpenSliceMinutes')
     if (!beatTimeoutMinutes) missingFields.push('beatTimeoutMinutes')
     throw new Error(`Missing required configuration: ${missingFields.join(', ')}`)
@@ -75,7 +73,6 @@ const bootstrap = async (): Promise<{currentProjectId: string | null}> => {
     orgId,
     memberId: member.id,
     projectId: currentProjectId,
-    idleThresholdMs: DateUtils.minutesToMilliseconds(idleThresholdMinutes),
     maxTimeSpanForOpenSliceMs: DateUtils.minutesToMilliseconds(maxTimeSpanForOpenSliceMinutes),
     beatTimeoutMs: DateUtils.minutesToMilliseconds(beatTimeoutMinutes),
   })
@@ -132,9 +129,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
     const handleWindowStateChange = (state: vscode.WindowState) => {
       try {
-        if (state.focused || state.active) {
-          TimeTracker().start()
-        } else {
+        if (!state.focused || !state.active) {
           TimeTracker().stop()
         }
       } catch (error) {
@@ -151,7 +146,45 @@ export async function activate(context: vscode.ExtensionContext) {
 
     Logger().log(`current project id at startup: ${currentProjectId}`)
 
-    TimeTracker().start()
+    context.subscriptions.push(
+      vscode.commands.registerCommand('solidtime.pauseTracking', () => {
+        TimeTracker().pause()
+      })
+    )
+
+    context.subscriptions.push(
+      vscode.commands.registerCommand('solidtime.resumeTracking', () => {
+        TimeTracker().resume()
+      })
+    )
+
+    TimeTracker().on('init', () => {
+      Logger().log('⏱️ Time tracking started for the current project.')
+    })
+
+    TimeTracker().on('pause', () => {
+      Logger().log('⏸️ Time tracking paused for the current project.')
+    })
+
+    TimeTracker().on('resume', () => {
+      Logger().log('⏯️ Time tracking resumed for the current project.')
+    })
+
+    TimeTracker().on('activity', () => {
+      Logger().log('🟢 User activity detected. Time tracking updated.')
+    })
+
+    TimeTracker().on('update-time-entry', () => {
+      Logger().log('🔄 Time entry updated and synchronized with Solidtime.')
+    })
+
+    TimeTracker().on('create-time-entry', () => {
+      Logger().log('🆕 New time entry created and sent to Solidtime.')
+    })
+
+    TimeTracker().on('stop', () => {
+      Logger().log('🔴 Time tracking stopped for the current project.')
+    })
 
     Logger().log('extension activated')
   } catch (error) {

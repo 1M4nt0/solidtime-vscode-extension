@@ -55,7 +55,16 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
-    "commands": [],
+    "commands": [
+      {
+        "command": "solidtime.pauseTracking",
+        "title": "Pause Tracking"
+      },
+      {
+        "command": "solidtime.resumeTracking",
+        "title": "Resume Tracking"
+      }
+    ],
     "configuration": {
       "title": "Solidtime - VSCode Extension",
       "properties": {
@@ -71,11 +80,6 @@
         "solidtime-vscode-extension.organizationId": {
           "type": "string",
           "description": "Your Solidtime organization ID"
-        },
-        "solidtime-vscode-extension.idleThresholdMinutes": {
-          "type": "number",
-          "default": 10,
-          "description": "Idle threshold in minutes"
         },
         "solidtime-vscode-extension.maxTimeSpanForOpenSliceMinutes": {
           "type": "number",

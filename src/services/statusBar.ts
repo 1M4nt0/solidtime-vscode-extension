@@ -5,11 +5,15 @@ import {StatusBarAlignment, window} from 'vscode'
 abstract class SpendTimeNotification {
   abstract update(workingTime: number): void
   abstract dispose(): void
+  abstract enable(): void
+  abstract disable(): void
 }
 
 @injectable()
 class StatusBar implements SpendTimeNotification {
   private readonly statusBarItem: StatusBarItem
+  private readonly _iconRegex = /\$\([a-z-]+\)/
+  private isEnabled = true
 
   constructor() {
     this.statusBarItem = window.createStatusBarItem('solidtime-vscode-extension.time', StatusBarAlignment.Left, 3)
@@ -20,7 +24,28 @@ class StatusBar implements SpendTimeNotification {
   }
 
   update(workingTime: number): void {
-    this.statusBarItem.text = `$(clock) ${this._formatTimeSpent(workingTime)}`
+    const iconMatch = this.statusBarItem.text.match(this._iconRegex)
+    const icon = iconMatch ? iconMatch[0] : '$(clock)'
+    let formattedTime = this._formatTimeSpent(workingTime)
+    if (!this.isEnabled) {
+      formattedTime = formattedTime.replace(/./g, '$&\u0336')
+    }
+    this.statusBarItem.text = `${icon} ${formattedTime}`
+  }
+
+  enable(): void {
+    this.isEnabled = true
+    const text = this.statusBarItem.text.replace(/\u0336/g, '')
+    this.statusBarItem.text = text.replace(this._iconRegex, '$(clock)')
+    this.statusBarItem.command = 'solidtime.pauseTracking'
+  }
+
+  disable(): void {
+    this.isEnabled = false
+    const timeText = this.statusBarItem.text.replace(this._iconRegex, '').trim()
+    const struckTimeText = timeText.replace(/./g, '$&\u0336')
+    this.statusBarItem.text = `$(debug-pause) ${struckTimeText}`
+    this.statusBarItem.command = 'solidtime.resumeTracking'
   }
 
   dispose(): void {

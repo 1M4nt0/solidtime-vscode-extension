@@ -4,7 +4,7 @@ import {
   type TimeTrackerServiceConfig,
   TimeTrackerService,
   SpendTimeNotificationSymbol,
-} from './timeTracker'
+} from './time-tracker/timeTracker'
 import {FetchWrapper, FetchWrapperConfigSymbol, FetchWrapperSymbol, type FetchWrapperConfig} from './fetch'
 import {Container} from 'inversify'
 import {ConsoleLogger, type ILogger} from './logger'
@@ -24,7 +24,6 @@ const initTimeTrackerServiceInjection = (config: {
   orgId: string
   memberId: string
   projectId: string
-  idleThresholdMs: number
   maxTimeSpanForOpenSliceMs: number
   beatTimeoutMs: number
 }) => {
@@ -32,7 +31,6 @@ const initTimeTrackerServiceInjection = (config: {
     orgId: config.orgId,
     memberId: config.memberId,
     projectId: config.projectId,
-    idleThresholdMs: config.idleThresholdMs,
     maxTimeSpanForOpenSliceMs: config.maxTimeSpanForOpenSliceMs,
     beatTimeoutMs: config.beatTimeoutMs,
   })
